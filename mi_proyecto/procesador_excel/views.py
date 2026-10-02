@@ -1,7 +1,22 @@
 from django.shortcuts import render
 from django import forms
+import io
 import pandas as pd
 from django.http import HttpResponse
+
+
+def _read_uploaded_file(file):
+    raw = file.read()
+    if str(file).endswith('.xlsx'):
+        return pd.read_excel(io.BytesIO(raw))
+    elif str(file).endswith('.csv'):
+        for enc in ('utf-8-sig', 'latin-1', 'cp1252'):
+            try:
+                return pd.read_csv(io.StringIO(raw.decode(enc)))
+            except (UnicodeDecodeError, ValueError):
+                continue
+        raise ValueError("No se pudo decodificar el archivo CSV.")
+    raise ValueError("Por favor, sube un archivo .xlsx o .csv válido.")
 
 
 class UploadFileForm(forms.Form):
@@ -18,12 +33,10 @@ def upload_excel2(request):
         form = UploadFileForm(request.POST, request.FILES)
         if form.is_valid():
             file = request.FILES['file']
-            if str(file).endswith('.xlsx'):
-                df = pd.read_excel(file)
-            elif str(file).endswith('.csv'):
-                df = pd.read_csv(file)
-            else:
-                return HttpResponse("Por favor, sube un archivo .xlsx o .csv válido.")
+            try:
+                df = _read_uploaded_file(file)
+            except ValueError as e:
+                return HttpResponse(str(e))
 
             # Creación de 'nombre del dentista'
             df['nombre del dentista'] = df['nombreprestador'] + " " + df['primerapellidoprestador'] + " " + df['segundoapellidoprestador']
@@ -85,12 +98,10 @@ def upload_excel(request):
         form = UploadFileForm(request.POST, request.FILES)
         if form.is_valid():
             file = request.FILES['file']
-            if str(file).endswith('.xlsx'):
-                df = pd.read_excel(file)
-            elif str(file).endswith('.csv'):
-                df = pd.read_csv(file)
-            else:
-                return HttpResponse("Por favor, sube un archivo .xlsx o .csv válido.")
+            try:
+                df = _read_uploaded_file(file)
+            except ValueError as e:
+                return HttpResponse(str(e))
 
             # Creación de 'nombre del dentista'
             df['nombre del dentista'] = df['nombreprestador'] + " " + df['primerapellidoprestador'] + " " + df['segundoapellidoprestador']
@@ -164,12 +175,10 @@ def upload_excel3(request):
             file = request.FILES['file']
 
             # --- 1) Leer archivo ---
-            if str(file).endswith('.xlsx'):
-                df = pd.read_excel(file)
-            elif str(file).endswith('.csv'):
-                df = pd.read_csv(file)
-            else:
-                return HttpResponse("Por favor, sube un archivo .xlsx o .csv válido.")
+            try:
+                df = _read_uploaded_file(file)
+            except ValueError as e:
+                return HttpResponse(str(e))
 
             # --- 2) Normalizar nombres de columnas + mapear sinónimos ---
             def norm_col(s: str) -> str:
